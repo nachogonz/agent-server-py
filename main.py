@@ -66,7 +66,7 @@ async def entrypoint(ctx: agents.JobContext):
 
         # Generate initial greeting
         await session.generate_reply(
-            instructions="Greet the user and offer your assistance."
+            instructions="Greet the user and offer your assistance.",
         )
 
         logger.info("✅ Agent session started successfully")
