@@ -39,4 +39,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 EXPOSE 8080
 
 # Command to run the application
-CMD ["python", "main.py"]
+CMD ["python", "main.py", "start"]
