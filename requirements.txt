@@ -1,5 +1,11 @@
 # LiveKit Python SDK v1.0+ with agents support
-livekit-agents[openai]>=1.0
+livekit-agents[openai,deepgram,elevenlabs,silero]>=1.2.2
+
+# LiveKit Plugins for VoicePipelineAgent
+livekit-plugins-openai>=1.2.2
+livekit-plugins-elevenlabs>=1.2.2
+livekit-plugins-deepgram>=1.2.2
+livekit-plugins-silero>=1.2.2
 
 # Environment management
 python-dotenv

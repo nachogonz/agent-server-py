@@ -18,8 +18,8 @@ sys.path.insert(0, str(src_path))
 
 from dotenv import load_dotenv
 from livekit import agents
-from livekit.agents import AgentSession, Agent, JobContext, RoomInputOptions
-from livekit.plugins import openai
+from livekit.agents import AgentSession
+from livekit.plugins import openai, elevenlabs, deepgram, silero
 
 from src.agent import VoiceAssistant
 
@@ -27,35 +27,75 @@ load_dotenv()
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
 
 async def entrypoint(ctx: agents.JobContext):
-    """Main entry point for the LiveKit agent using realtime API."""
-    
-    # Check required environment variables
+    """Main entry point for the LiveKit agent using STT-LLM-TTS pipeline."""
+
+    # Check required environment variables  
     required_env_vars = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "OPENAI_API_KEY"]
+    # ElevenLabs and Deepgram are optional for basic functionality
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-    
+
     if missing_vars:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+        raise ValueError(
+            f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
 
     # Determine agent mode
     agent_mode = os.getenv("MODE", "orders")
     logger.info(f"Starting LiveKit agent in mode: {agent_mode}")
 
     try:
+        # Connect to the room first
+        await ctx.connect()
+        
         # Create the voice assistant
         assistant = VoiceAssistant(mode=agent_mode)
+
+        # Configure TTS - use ElevenLabs if available, fallback to OpenAI
+        tts_config = None
+        eleven_api_key = os.getenv("ELEVEN_API_KEY") or os.getenv("ELEVENLABS_API_KEY")
         
-        # Create agent session with realtime model
+        if eleven_api_key:
+            try:
+                logger.info("Using ElevenLabs TTS")
+                # Use a more common voice ID that should exist (Rachel - default female voice)
+                voice_id = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # Rachel voice
+                tts_config = elevenlabs.TTS(
+                    api_key=eleven_api_key,
+                    voice_id=voice_id, 
+                    model="eleven_multilingual_v2"
+                )
+                logger.info(f"✅ ElevenLabs TTS configured with voice: {voice_id}")
+            except Exception as e:
+                logger.warning(f"⚠️ ElevenLabs TTS failed to initialize: {e}")
+                logger.info("Falling back to OpenAI TTS")
+                tts_config = openai.TTS(voice="nova")
+        else:
+            logger.info("Using OpenAI TTS (ElevenLabs API key not found)")
+            tts_config = openai.TTS(voice="nova")
+
+        # Configure STT - use Deepgram if available, fallback to OpenAI
+        stt_config = None
+        deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
+        
+        if deepgram_api_key:
+            logger.info("Using Deepgram STT")
+            stt_config = deepgram.STT(model="nova-2")
+        else:
+            logger.info("Using OpenAI STT (Deepgram API key not found)")
+            stt_config = openai.STT()
+
+        # Create agent session with STT-LLM-TTS pipeline
         session = AgentSession(
-            llm=openai.realtime.RealtimeModel(
-                voice="coral"
-            )
+            stt=stt_config,
+            llm=openai.LLM(model="gpt-4o-mini"),
+            tts=tts_config,
+            vad=silero.VAD.load(),
         )
 
         # Start the session
@@ -86,25 +126,27 @@ async def prewarm(proc):
 
 def main():
     """Main entry point for the LiveKit Python agent."""
-    
+
     # Log startup information
     agent_mode = os.getenv("MODE", "orders")
     logger.info(f"Starting LiveKit Python Agent in mode: {agent_mode}")
-    
+
     # Verify required environment variables
     required_vars = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "OPENAI_API_KEY"]
     missing_vars = [var for var in required_vars if not os.getenv(var)]
-    
+
     if missing_vars:
-        logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
+        logger.error(
+            f"Missing required environment variables: {', '.join(missing_vars)}"
+        )
         sys.exit(1)
-    
+
     # Create worker options
     worker_options = agents.WorkerOptions(
         entrypoint_fnc=entrypoint,
         prewarm_fnc=prewarm,
     )
-    
+
     # Start the agent using LiveKit CLI
     agents.cli.run_app(worker_options)
 
