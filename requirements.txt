@@ -1,4 +1,4 @@
-# LiveKit Python SDK v1.0+ with agents support (simplified version)
+# LiveKit Python SDK v1.0+ with agents support
 livekit-agents[openai]>=1.0
 
 # Environment management
@@ -10,13 +10,3 @@ aiohttp
 
 # Data validation
 pydantic
-
-# Voice capabilities for console
-SpeechRecognition
-pyttsx3
-PyAudio
-
-# Voice capabilities for console
-SpeechRecognition
-pyttsx3
-PyAudio

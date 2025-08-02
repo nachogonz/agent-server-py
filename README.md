@@ -1,260 +1,101 @@
 # LiveKit Python Agent Server
 
-A Python implementation of the LiveKit voice agent server, ported from the Node.js version. This agent provides voice-based interactions for multiple business scenarios including orders, appointments, leads, airline services, and AI consultations.
+This is a Python implementation of a LiveKit voice agent using the realtime API with OpenAI's Realtime Model.
 
 ## Features
 
-- **Voice AI Agent**: Text-based LLM integration with OpenAI GPT-4o-mini
-- **Multiple Agent Modes**: 
-  - `orders`: Product ordering and order management
-  - `appointments`: Dental clinic appointment scheduling
-  - `leads`: Health insurance lead capture
-  - `airline`: Flight booking and customer service
-  - `jarvis`: AI consultation scheduling
-- **Real-time Communication**: Powered by LiveKit's communication platform
-- **Function Calling**: Integrated business functions for each agent mode
-- **Analytics**: Conversation tracking and session metrics
-- **Extensible**: Easy to add new agent modes and functions
+- Real-time voice conversation using LiveKit Agents with OpenAI's Realtime Model
+- Multiple agent modes: orders, appointments, leads, airline, jarvis
+- End-to-end voice processing with GPT-4o
+- Analytics tracking
 
-## Requirements
+## Setup
 
-- Python 3.9+
-- LiveKit account and API credentials
-- OpenAI API key
-- Backend API server (for business functions)
+### 1. Install Dependencies
 
-## Installation
+```bash
+pip install -r requirements.txt
+```
 
-1. **Clone the repository**:
-   ```bash
-   git clone <repository-url>
-   cd back/agent-server-py
-   ```
+### 2. Environment Variables
 
-2. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Create a `.env` file with the following variables:
 
-3. **Set up environment variables**:
-   ```bash
-   cp .env.example .env
-   # Edit .env with your actual credentials
-   ```
+```env
+# LiveKit Configuration
+LIVEKIT_API_KEY=<your LiveKit API key>
+LIVEKIT_API_SECRET=<your LiveKit API secret>
+LIVEKIT_URL=<your LiveKit server URL>
 
-4. **Configure environment**:
-   ```env
-   LIVEKIT_API_KEY=your_livekit_api_key
-   LIVEKIT_API_SECRET=your_livekit_api_secret
-   LIVEKIT_URL=wss://your-project.livekit.cloud
-   OPENAI_API_KEY=your_openai_api_key
-   MODE=orders  # or appointments, leads, airline, jarvis
-   API_BASE_URL=http://localhost:3001
-   ```
+# AI Provider Keys
+OPENAI_API_KEY=<your OpenAI API key>
+
+# Agent Configuration
+MODE=orders  # Options: orders, appointments, leads, airline, jarvis
+
+# Optional: Backend API for analytics
+API_BASE_URL=http://localhost:3001
+```
 
 ## Usage
 
-### Local Development
+### Development Mode
 
-**Console Mode** (for testing):
-```bash
-python main.py console
-```
+Start the agent in development mode to connect to LiveKit:
 
-**Development Mode** (connects to LiveKit):
 ```bash
 python main.py dev
 ```
 
-**Production Mode**:
+### Production Mode
+
+Start the agent in production mode:
+
 ```bash
 python main.py start
 ```
 
-### Docker
+### Console Mode
 
-1. **Build the image**:
-   ```bash
-   docker build -t livekit-python-agent .
-   ```
+For testing, you can run the agent in console mode:
 
-2. **Run the container**:
-   ```bash
-   docker run -d \
-     --name python-agent \
-     -e LIVEKIT_API_KEY=your_key \
-     -e LIVEKIT_API_SECRET=your_secret \
-     -e OPENAI_API_KEY=your_openai_key \
-     -e MODE=orders \
-     -e API_BASE_URL=http://host.docker.internal:3001 \
-     -p 8080:8080 \
-     livekit-python-agent
-   ```
+```bash
+python main.py console
+```
 
 ## Agent Modes
 
-### Orders Agent (`MODE=orders`)
-- Client verification and greeting
-- Product search with vector similarity
-- Order creation and management
-- Delivery scheduling
-- Natural conversational ordering flow
-
-### Appointments Agent (`MODE=appointments`)
-- Dental appointment scheduling
-- Availability checking
-- Patient type detection (new/returning)
-- Appointment type categorization
-- Reminder preferences
-
-### Leads Agent (`MODE=leads`)
-- Health insurance lead capture
-- Structured sales script flow
-- Objection handling
-- Data collection and qualification
-- Follow-up scheduling
-
-### Airline Agent (`MODE=airline`)
-- Flight booking modifications
-- Passenger check-in services
-- Lost baggage reporting
-- Spanish language support
-- Comprehensive flight management
-
-### Jarvis Agent (`MODE=jarvis`)
-- AI consultation scheduling
-- Business discovery and qualification
-- Calendar availability checking
-- Meeting coordination
-- Custom proposal preparation
+- **orders**: Order management and processing
+- **appointments**: Appointment scheduling and management
+- **leads**: Lead qualification and management
+- **airline**: Airline booking and customer service
+- **jarvis**: General assistant with multiple capabilities
 
 ## Architecture
 
-### Key Components
+The agent uses the LiveKit Agents realtime API with OpenAI's Realtime Model:
 
-- **`agent.py`**: Main agent logic and LiveKit integration
-- **`functions.py`**: Business function implementations
-- **`prompts/`**: Agent personality and instruction prompts
-- **`main.py`**: Application entry point
+- **Realtime Model**: OpenAI GPT-4o with "coral" voice for end-to-end voice processing
 
-### Function Context
-
-Each agent mode has access to specific business functions:
-
-- **Orders**: `checkClientId`, `searchProducts`, `createOrder`, `finishOrder`
-- **Appointments**: `createAppointment`, `checkAppointmentAvailability`
-- **Leads**: `captureLead`
-- **Airline**: `changeBooking`, `checkInPassenger`, `reportLostBaggage`
-- **Consultations**: `scheduleConsultation`, `checkCalendarAvailability`
-
-### Metrics Collection
-
-The agent automatically collects:
-- Conversation transcripts
-- Usage metrics (tokens, duration)
-- Function call analytics
-- Session performance data
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `LIVEKIT_API_KEY` | LiveKit API key | Yes | - |
-| `LIVEKIT_API_SECRET` | LiveKit API secret | Yes | - |
-| `OPENAI_API_KEY` | OpenAI API key | Yes | - |
-| `MODE` | Agent mode | No | `orders` |
-| `API_BASE_URL` | Backend API URL | No | `http://localhost:3001` |
-| `PORT` | Health check port | No | `8080` |
-
-### Agent Customization
-
-To modify agent behavior:
-
-1. **Update prompts**: Edit files in `src/prompts/`
-2. **Add functions**: Extend `FunctionContext` in `src/functions.py`
-3. **Modify conversation flow**: Update agent logic in `src/agent.py`
-
-## API Integration
-
-The agent integrates with backend services for:
-
-- User and client management
-- Product catalog and search
-- Order processing
-- Appointment scheduling
-- Lead management
-- Calendar operations
-
-Ensure your backend API is running and accessible at the configured `API_BASE_URL`.
-
-## Development
-
-### Project Structure
+## File Structure
 
 ```
 agent-server-py/
+├── main.py              # Main entry point with realtime API
+├── requirements.txt     # Python dependencies
 ├── src/
-│   ├── __init__.py
-│   ├── agent.py          # Main agent implementation
-│   ├── functions.py      # Business function implementations
-│   └── prompts/          # Agent instruction prompts
-│       ├── __init__.py
-│       ├── orders.py
-│       ├── appointments.py
-│       ├── leads.py
-│       ├── airline.py
-│       └── jarvis.py
-├── main.py               # Application entry point
-├── requirements.txt      # Python dependencies
-├── Dockerfile           # Container configuration
-├── .env.example         # Environment template
+│   ├── agent.py         # VoiceAssistant class
+│   ├── functions.py     # Function definitions
+│   └── prompts/         # System prompts for different modes
 └── README.md           # This file
 ```
 
-### Adding New Agent Modes
-
-1. Create a new prompt file in `src/prompts/`
-2. Add mode-specific functions to `src/functions.py`
-3. Update the prompt mapping in `src/agent.py`
-4. Test the new mode with `MODE=your_new_mode`
-
 ## Troubleshooting
 
-### Common Issues
+1. **Missing API Keys**: Ensure all required API keys are set in your `.env` file
+2. **LiveKit Connection**: Verify your LiveKit server URL and credentials
+3. **Audio Issues**: Check microphone permissions and audio device settings
 
-1. **Missing environment variables**: Ensure all required variables are set
-2. **Import errors**: Run `pip install -r requirements.txt` to install dependencies
-3. **API connection errors**: Verify backend API is running and accessible
-4. **LiveKit connection issues**: Check API credentials and network connectivity
-5. **Function call errors**: Verify backend API endpoints and data formats
+## Development
 
-### Testing the Agent
-
-1. **Console Mode**: Test the agent locally without LiveKit connection:
-   ```bash
-   python main.py console
-   ```
-
-2. **Development Mode**: Connect to LiveKit for full testing:
-   ```bash
-   python main.py dev
-   ```
-
-### Debugging
-
-Enable debug logging by setting the log level in `src/agent.py`:
-
-```python
-import logging
-logging.basicConfig(level=logging.DEBUG)
-```
-
-### Health Checks
-
-The agent includes a built-in health check server at `http://localhost:8080/health`.
-
-## License
-
-This project is part of the Nova Node AI platform.
+The agent is built using the LiveKit Agents Python SDK v1.2.2 with OpenAI's Realtime Model. The main entry point is `main.py` which uses the `AgentSession` class with the `openai.realtime.RealtimeModel` for end-to-end voice processing.
