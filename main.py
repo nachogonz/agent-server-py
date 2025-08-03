@@ -22,6 +22,7 @@ from livekit.agents import AgentSession
 from livekit.plugins import openai, elevenlabs, deepgram, silero
 
 from src.agent import VoiceAssistant
+from src.agent_tools import build_livekit_tools
 
 load_dotenv()
 
@@ -36,7 +37,7 @@ async def entrypoint(ctx: agents.JobContext):
     """Main entry point for the LiveKit agent using STT-LLM-TTS pipeline."""
 
     # Check required environment variables  
-    required_env_vars = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "OPENAI_API_KEY"]
+    required_env_vars = ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET", "OPENAI_API_KEY", "ELEVEN_API_KEY"]
     # ElevenLabs and Deepgram are optional for basic functionality
     missing_vars = [var for var in required_env_vars if not os.getenv(var)]
 
@@ -56,9 +57,15 @@ async def entrypoint(ctx: agents.JobContext):
         # Create the voice assistant
         assistant = VoiceAssistant(mode=agent_mode)
 
+        # Build and attach function tools to the assistant
+        logger.info("🔧 Building and attaching function tools...")
+        tools = build_livekit_tools(assistant.function_context)
+        await assistant.update_tools(tools)
+        logger.info(f"✅ Attached {len(tools)} function tools to assistant")
+
         # Configure TTS - use ElevenLabs if available, fallback to OpenAI
         tts_config = None
-        eleven_api_key = os.getenv("ELEVEN_API_KEY") or os.getenv("ELEVENLABS_API_KEY")
+        eleven_api_key = os.getenv("ELEVEN_API_KEY") 
         
         if eleven_api_key:
             try:
@@ -68,7 +75,7 @@ async def entrypoint(ctx: agents.JobContext):
                 tts_config = elevenlabs.TTS(
                     api_key=eleven_api_key,
                     voice_id=voice_id, 
-                    model="eleven_multilingual_v2"
+                    model="eleven_flash_v2_5"
                 )
                 logger.info(f"✅ ElevenLabs TTS configured with voice: {voice_id}")
             except Exception as e:
