@@ -75,7 +75,15 @@ async def entrypoint(ctx: agents.JobContext):
                 tts_config = elevenlabs.TTS(
                     api_key=eleven_api_key,
                     voice_id=voice_id, 
-                    model="eleven_flash_v2_5"
+                    model="eleven_flash_v2_5",
+                    language="es",
+                    voice_settings=elevenlabs.VoiceSettings(
+                        stability=0.7,
+                        similarity_boost=0.8,
+                        style=0.3,
+                        use_speaker_boost=True,
+                        speed=1.1
+                    )
                 )
                 logger.info(f"✅ ElevenLabs TTS configured with voice: {voice_id}")
             except Exception as e:
