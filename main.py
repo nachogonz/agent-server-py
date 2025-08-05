@@ -53,10 +53,19 @@ async def entrypoint(ctx: agents.JobContext):
 
         # Initialize configuration manager
         config_manager = ConfigManager()
-        logger.info(f"Starting LiveKit agent in mode: {config_manager.get_agent_mode()}")
         
-        # Create the voice assistant with configuration
-        assistant = VoiceAssistant(config_manager=config_manager)
+        # Check for agent name in environment variable
+        agent_name = os.getenv("AGENT_NAME")
+        
+        if agent_name:
+            logger.info(f"Loading specific agent: {agent_name}")
+            # Create the voice assistant with specific agent configuration
+            assistant = VoiceAssistant(config_manager=config_manager, agent_name=agent_name)
+            logger.info(f"✅ Loaded agent '{assistant.get_agent_name()}' in mode: {assistant.mode}")
+        else:
+            # Create the voice assistant with default configuration
+            assistant = VoiceAssistant(config_manager=config_manager)
+            logger.info(f"✅ Loaded default agent '{assistant.get_agent_name()}' in mode: {assistant.mode}")
 
         # Build and attach function tools to the assistant
         logger.info("🔧 Building and attaching function tools...")
@@ -110,6 +119,23 @@ def main():
 
     # Initialize configuration to get mode for logging
     config_manager = ConfigManager()
+    
+    # Show available agents
+    available_agents = config_manager.list_available_agents()
+    agent_name = os.getenv("AGENT_NAME")
+    
+    if available_agents:
+        logger.info(f"Available agents: {', '.join(available_agents)}")
+        if agent_name:
+            if agent_name in available_agents:
+                logger.info(f"Using specified agent: {agent_name}")
+            else:
+                logger.warning(f"⚠️ Agent '{agent_name}' not found, will use default")
+        else:
+            logger.info(f"No AGENT_NAME specified, using first available agent: {available_agents[0]}")
+    else:
+        logger.warning("⚠️ No agents found in configuration")
+    
     agent_mode = config_manager.get_agent_mode()
     logger.info(f"Starting LiveKit Python Agent in mode: {agent_mode}")
 

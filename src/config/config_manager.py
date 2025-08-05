@@ -8,7 +8,7 @@ It provides a centralized way to manage TTS, STT, LLM, and agent configurations.
 import json
 import logging
 import os
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 from livekit.plugins import openai, elevenlabs, deepgram, silero
@@ -110,6 +110,70 @@ class ConfigManager:
     def get_greeting_instructions(self) -> str:
         """Get greeting instructions for the agent."""
         return self.config.get("agent", {}).get("greeting_instructions", "Greet the user and offer your assistance.")
+    
+    def get_agent_prompt(self) -> str:
+        """Get the system prompt for the agent."""
+        return self.config.get("agent", {}).get("prompt", "")
+    
+    def get_agent_name(self) -> str:
+        """Get the agent name."""
+        return self.config.get("name", "default_agent")
+    
+    def load_agent_by_name(self, agent_name: str) -> bool:
+        """
+        Load a specific agent configuration by name.
+        
+        Args:
+            agent_name: Name of the agent to load
+            
+        Returns:
+            True if agent was found and loaded, False otherwise
+        """
+        try:
+            if os.path.isfile(self.config_source):
+                with open(self.config_source, 'r') as f:
+                    raw_config = json.load(f)
+                
+                if isinstance(raw_config, list):
+                    for agent_config in raw_config:
+                        if agent_config.get("name") == agent_name:
+                            self.config = agent_config
+                            logger.info(f"✅ Loaded agent config: {agent_name}")
+                            return True
+                    
+                    logger.warning(f"⚠️ Agent '{agent_name}' not found")
+                    return False
+                else:
+                    logger.warning("⚠️ Config is not an array, cannot load by name")
+                    return False
+            else:
+                logger.warning(f"⚠️ Config file not found")
+                return False
+        except Exception as e:
+            logger.error(f"❌ Error loading agent config by name: {e}")
+            return False
+    
+    def list_available_agents(self) -> List[str]:
+        """
+        Get list of available agent names from config.
+        
+        Returns:
+            List of agent names
+        """
+        try:
+            if os.path.isfile(self.config_source):
+                with open(self.config_source, 'r') as f:
+                    raw_config = json.load(f)
+                
+                if isinstance(raw_config, list):
+                    return [agent.get("name", f"agent_{i}") for i, agent in enumerate(raw_config)]
+                else:
+                    return [raw_config.get("name", "default_agent")]
+            else:
+                return []
+        except Exception as e:
+            logger.error(f"❌ Error listing agents: {e}")
+            return []
     
     def reload_config(self) -> None:
         """Reload configuration from source (useful for database integration later)."""
