@@ -19,9 +19,6 @@
           "use_speaker_boost": true,
           "speed": 1.15
         }
-      },
-      "openai": {
-        "voice": "onyx"
       }
     },
     "stt": {
@@ -61,9 +58,6 @@
           "use_speaker_boost": true,
           "speed": 1.0
         }
-      },
-      "openai": {
-        "voice": "alloy"
       }
     },
     "stt": {
@@ -103,9 +97,6 @@
           "use_speaker_boost": true,
           "speed": 1.1
         }
-      },
-      "openai": {
-        "voice": "nova"
       }
     },
     "stt": {
@@ -145,9 +136,6 @@
           "use_speaker_boost": true,
           "speed": 0.95
         }
-      },
-      "openai": {
-        "voice": "nova"
       }
     },
     "stt": {
@@ -187,9 +175,6 @@
           "use_speaker_boost": true,
           "speed": 1.05
         }
-      },
-      "openai": {
-        "voice": "echo"
       }
     },
     "stt": {
