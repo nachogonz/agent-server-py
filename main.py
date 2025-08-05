@@ -23,6 +23,7 @@ from livekit.plugins import openai, elevenlabs, deepgram, silero
 
 from src.agent import VoiceAssistant
 from src.agent_tools import build_livekit_tools
+from src.config_manager import ConfigManager
 
 load_dotenv()
 
@@ -46,16 +47,16 @@ async def entrypoint(ctx: agents.JobContext):
             f"Missing required environment variables: {', '.join(missing_vars)}"
         )
 
-    # Determine agent mode
-    agent_mode = os.getenv("MODE", "orders")
-    logger.info(f"Starting LiveKit agent in mode: {agent_mode}")
-
     try:
         # Connect to the room first
         await ctx.connect()
+
+        # Initialize configuration manager
+        config_manager = ConfigManager()
+        logger.info(f"Starting LiveKit agent in mode: {config_manager.get_agent_mode()}")
         
-        # Create the voice assistant
-        assistant = VoiceAssistant(mode=agent_mode)
+        # Create the voice assistant with configuration
+        assistant = VoiceAssistant(config_manager=config_manager)
 
         # Build and attach function tools to the assistant
         logger.info("🔧 Building and attaching function tools...")
@@ -63,54 +64,19 @@ async def entrypoint(ctx: agents.JobContext):
         await assistant.update_tools(tools)
         logger.info(f"✅ Attached {len(tools)} function tools to assistant")
 
-        # Configure TTS - use ElevenLabs if available, fallback to OpenAI
-        tts_config = None
-        eleven_api_key = os.getenv("ELEVEN_API_KEY") 
-        
-        if eleven_api_key:
-            try:
-                logger.info("Using ElevenLabs TTS")
-                # Use a more common voice ID that should exist (Rachel - default female voice)
-                voice_id = os.getenv("ELEVENLABS_VOICE_ID", "21m00Tcm4TlvDq8ikWAM")  # Rachel voice
-                tts_config = elevenlabs.TTS(
-                    api_key=eleven_api_key,
-                    voice_id=voice_id, 
-                    model="eleven_flash_v2_5",
-                    language="es",
-                    voice_settings=elevenlabs.VoiceSettings(
-                        stability=0.7,
-                        similarity_boost=0.8,
-                        style=0.3,
-                        use_speaker_boost=True,
-                        speed=1.1
-                    )
-                )
-                logger.info(f"✅ ElevenLabs TTS configured with voice: {voice_id}")
-            except Exception as e:
-                logger.warning(f"⚠️ ElevenLabs TTS failed to initialize: {e}")
-                logger.info("Falling back to OpenAI TTS")
-                tts_config = openai.TTS(voice="nova")
-        else:
-            logger.info("Using OpenAI TTS (ElevenLabs API key not found)")
-            tts_config = openai.TTS(voice="nova")
-
-        # Configure STT - use Deepgram if available, fallback to OpenAI
-        stt_config = None
-        deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
-        
-        if deepgram_api_key:
-            logger.info("Using Deepgram STT")
-            stt_config = deepgram.STT(model="nova-2")
-        else:
-            logger.info("Using OpenAI STT (Deepgram API key not found)")
-            stt_config = openai.STT()
+        # Create configurations using the config manager
+        logger.info("🔧 Creating TTS, STT, LLM, and VAD configurations...")
+        tts_config = config_manager.create_tts()
+        stt_config = config_manager.create_stt()
+        llm_config = config_manager.create_llm()
+        vad_config = config_manager.create_vad()
 
         # Create agent session with STT-LLM-TTS pipeline
         session = AgentSession(
             stt=stt_config,
-            llm=openai.LLM(model="gpt-4o-mini"),
+            llm=llm_config,
             tts=tts_config,
-            vad=silero.VAD.load(),
+            vad=vad_config,
         )
 
         # Start the session
@@ -119,9 +85,9 @@ async def entrypoint(ctx: agents.JobContext):
             agent=assistant,
         )
 
-        # Generate initial greeting
+        # Generate initial greeting using configured instructions
         await session.generate_reply(
-            instructions="Greet the user and offer your assistance.",
+            instructions=assistant.get_greeting_instructions(),
         )
 
         logger.info("✅ Agent session started successfully")
@@ -142,8 +108,9 @@ async def prewarm(proc):
 def main():
     """Main entry point for the LiveKit Python agent."""
 
-    # Log startup information
-    agent_mode = os.getenv("MODE", "orders")
+    # Initialize configuration to get mode for logging
+    config_manager = ConfigManager()
+    agent_mode = config_manager.get_agent_mode()
     logger.info(f"Starting LiveKit Python Agent in mode: {agent_mode}")
 
     # Verify required environment variables

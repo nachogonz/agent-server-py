@@ -1,0 +1,40 @@
+[{
+  "tts": {
+    "provider": "elevenlabs",
+    "elevenlabs": {
+      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "model": "eleven_flash_v2_5",
+      "language": "es",
+      "voice_settings": {
+        "stability": 0.7,
+        "similarity_boost": 0.8,
+        "style": 0.3,
+        "use_speaker_boost": true,
+        "speed": 1.1
+      }
+    },
+    "openai": {
+      "voice": "nova"
+    }
+  },
+  "stt": {
+    "provider": "deepgram",
+    "deepgram": {
+      "model": "nova-2"
+    },
+    "openai": {}
+  },
+  "llm": {
+    "provider": "openai",
+    "openai": {
+      "model": "gpt-4o-mini"
+    }
+  },
+  "vad": {
+    "provider": "silero"
+  },
+  "agent": {
+    "mode": "orders",
+    "greeting_instructions": "Greet the user and offer your assistance."
+  }
+}]

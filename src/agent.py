@@ -15,6 +15,7 @@ from .prompts.appointments import SYSTEM_PROMPT_APPOINTMENTS
 from .prompts.leads import SYSTEM_PROMPT_LEADS
 from .prompts.airline import SYSTEM_PROMPT_AIRLINE
 from .prompts.jarvis import SYSTEM_PROMPT_JARVIS
+from .config_manager import ConfigManager
 
 load_dotenv()
 
@@ -26,14 +27,19 @@ logger = logging.getLogger(__name__)
 class VoiceAssistant(Agent):
     """Voice assistant that provides system prompts and handles analytics for VoicePipelineAgent."""
     
-    def __init__(self, mode: str = "orders"):
+    def __init__(self, config_manager: Optional[ConfigManager] = None, mode: Optional[str] = None):
+        # Initialize configuration manager
+        self.config_manager = config_manager or ConfigManager()
+        
+        # Get mode from config if not provided
+        self.mode = mode or self.config_manager.get_agent_mode()
+        
         # Get the system prompt based on mode
-        instructions = self._get_system_prompt_for_mode(mode)
+        instructions = self._get_system_prompt_for_mode(self.mode)
         
         # Initialize the parent Agent class with instructions
         super().__init__(instructions=instructions)
         
-        self.mode = mode
         self.function_context = FunctionContext()
         self.session_id = f"livekit-{int(datetime.now().timestamp())}-{os.urandom(4).hex()}"
         self.conversation_items: List[Dict[str, Any]] = []
@@ -61,6 +67,26 @@ class VoiceAssistant(Agent):
     def get_function_definitions(self) -> List[Dict[str, Any]]:
         """Get function definitions for the agent."""
         return self.function_context.create_function_context()
+    
+    def get_tts_config(self) -> Dict[str, Any]:
+        """Get TTS configuration from config manager."""
+        return self.config_manager.get_tts_config()
+    
+    def get_stt_config(self) -> Dict[str, Any]:
+        """Get STT configuration from config manager."""
+        return self.config_manager.get_stt_config()
+    
+    def get_llm_config(self) -> Dict[str, Any]:
+        """Get LLM configuration from config manager."""
+        return self.config_manager.get_llm_config()
+    
+    def get_vad_config(self) -> Dict[str, Any]:
+        """Get VAD configuration from config manager."""
+        return self.config_manager.get_vad_config()
+    
+    def get_greeting_instructions(self) -> str:
+        """Get greeting instructions from config manager."""
+        return self.config_manager.get_greeting_instructions()
         
     async def capture_conversation_item(self, role: str, content: str):
         """Capture conversation items for analytics."""
