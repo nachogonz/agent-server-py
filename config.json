@@ -1,6 +1,6 @@
 [{
   "agent": {
-    "mode": "jarvis",
+    "mode": "airline",
     "greeting_instructions": "Greet the user and offer your assistance."
   },
   "tts": {
