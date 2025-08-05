@@ -23,7 +23,7 @@ from livekit.plugins import openai, elevenlabs, deepgram, silero
 
 from src.agent import VoiceAssistant
 from src.agent_tools import build_livekit_tools
-from src.config_manager import ConfigManager
+from src.config.config_manager import ConfigManager
 
 load_dotenv()
 

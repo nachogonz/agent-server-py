@@ -15,7 +15,7 @@ from .prompts.appointments import SYSTEM_PROMPT_APPOINTMENTS
 from .prompts.leads import SYSTEM_PROMPT_LEADS
 from .prompts.airline import SYSTEM_PROMPT_AIRLINE
 from .prompts.jarvis import SYSTEM_PROMPT_JARVIS
-from .config_manager import ConfigManager
+from .config.config_manager import ConfigManager
 
 load_dotenv()
 

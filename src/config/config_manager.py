@@ -32,8 +32,8 @@ class ConfigManager:
     
     def _get_default_config_path(self) -> str:
         """Get the default configuration file path."""
-        # Look for config.json in the project root
-        project_root = Path(__file__).parent.parent
+        # Look for config.json in the project root (two levels up from src/config/)
+        project_root = Path(__file__).parent.parent.parent
         return str(project_root / "config.json")
     
     def _load_config(self) -> None:
@@ -105,7 +105,7 @@ class ConfigManager:
     def get_agent_mode(self) -> str:
         """Get the agent mode, with config file taking priority over environment variable."""
         config_mode = self.config.get("agent", {}).get("mode")
-        return config_mode 
+        return config_mode or "orders" 
     
     def get_greeting_instructions(self) -> str:
         """Get greeting instructions for the agent."""

@@ -1,8 +1,12 @@
 [{
+  "agent": {
+    "mode": "jarvis",
+    "greeting_instructions": "Greet the user and offer your assistance."
+  },
   "tts": {
     "provider": "elevenlabs",
     "elevenlabs": {
-      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "voice_id": "JNcXxzrlvFDXcrGo2b47",
       "model": "eleven_flash_v2_5",
       "language": "es",
       "voice_settings": {
@@ -32,9 +36,5 @@
   },
   "vad": {
     "provider": "silero"
-  },
-  "agent": {
-    "mode": "orders",
-    "greeting_instructions": "Greet the user and offer your assistance."
   }
 }]
