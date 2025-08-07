@@ -8,26 +8,34 @@ It provides a centralized way to manage TTS, STT, LLM, and agent configurations.
 import json
 import logging
 import os
+import asyncio
 from typing import Dict, Any, Optional, List
 from pathlib import Path
 
+import httpx
 from livekit.plugins import openai, elevenlabs, deepgram, silero
 
 logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """Manages configuration loading from JSON files with database support planning."""
+    """Manages configuration loading from API server with JSON file fallback."""
     
-    def __init__(self, config_source: Optional[str] = None):
+    def __init__(self, config_source: Optional[str] = None, api_base_url: Optional[str] = None):
         """
         Initialize configuration manager.
         
         Args:
-            config_source: Path to JSON config file or None for default
+            config_source: Path to JSON config file for fallback or None for default
+            api_base_url: Base URL for the agents API server
         """
         self.config_source = config_source or self._get_default_config_path()
+        self.api_base_url = api_base_url or os.getenv("API_BASE_URL", "http://localhost:3000")
         self.config: Dict[str, Any] = {}
+        # Check environment variable for API usage preference
+        use_api_env = os.getenv("USE_API_CONFIG", "true").lower()
+        self.use_api = use_api_env in ("true", "1", "yes", "on")
+        logger.info(f"🔗 API configuration: {'enabled' if self.use_api else 'disabled'} (URL: {self.api_base_url})")
         self._load_config()
     
     def _get_default_config_path(self) -> str:
@@ -36,8 +44,63 @@ class ConfigManager:
         project_root = Path(__file__).parent.parent.parent
         return str(project_root / "config.json")
     
+    def _fetch_agents_from_api(self) -> List[Dict[str, Any]]:
+        """Fetch all agents from the API server."""
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"{self.api_base_url}/agents")
+                response.raise_for_status()
+                agents = response.json()
+                logger.info(f"✅ Fetched {len(agents)} agents from API")
+                return agents
+        except httpx.RequestError as e:
+            logger.error(f"❌ Request error fetching agents from API: {e}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ HTTP error fetching agents from API: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error fetching agents from API: {e}")
+            raise
+    
+    def _fetch_agent_by_name_from_api(self, agent_name: str) -> Optional[Dict[str, Any]]:
+        """Fetch a specific agent by name from the API server."""
+        try:
+            with httpx.Client(timeout=10.0) as client:
+                response = client.get(f"{self.api_base_url}/agents/name/{agent_name}")
+                if response.status_code == 404:
+                    logger.warning(f"⚠️ Agent '{agent_name}' not found in API")
+                    return None
+                response.raise_for_status()
+                agent = response.json()
+                logger.info(f"✅ Fetched agent '{agent_name}' from API")
+                return agent
+        except httpx.RequestError as e:
+            logger.error(f"❌ Request error fetching agent '{agent_name}' from API: {e}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ HTTP error fetching agent '{agent_name}' from API: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"❌ Unexpected error fetching agent '{agent_name}' from API: {e}")
+            raise
+    
     def _load_config(self) -> None:
-        """Load configuration from the specified source."""
+        """Load configuration from API server or fallback to JSON file."""
+        if self.use_api:
+            try:
+                # Try to load from API server first
+                agents = self._fetch_agents_from_api()
+                if agents and len(agents) > 0:
+                    self.config = agents[0]  # Use first agent as default
+                    logger.info(f"✅ Configuration loaded from API: {self.api_base_url} (using first agent config)")
+                    return
+                else:
+                    logger.warning("⚠️ No agents found in API, falling back to JSON file")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load from API: {e}, falling back to JSON file")
+        
+        # Fallback to JSON file loading
         try:
             if os.path.isfile(self.config_source):
                 with open(self.config_source, 'r') as f:
@@ -46,10 +109,10 @@ class ConfigManager:
                 # Handle array of configurations - use the first one
                 if isinstance(raw_config, list) and len(raw_config) > 0:
                     self.config = raw_config[0]
-                    logger.info(f"✅ Configuration loaded from: {self.config_source} (using first agent config)")
+                    logger.info(f"✅ Configuration loaded from JSON: {self.config_source} (using first agent config)")
                 elif isinstance(raw_config, dict):
                     self.config = raw_config
-                    logger.info(f"✅ Configuration loaded from: {self.config_source}")
+                    logger.info(f"✅ Configuration loaded from JSON: {self.config_source}")
                 else:
                     logger.warning(f"⚠️ Invalid config format, using defaults")
                     self.config = self._get_default_config()
@@ -129,6 +192,20 @@ class ConfigManager:
         Returns:
             True if agent was found and loaded, False otherwise
         """
+        if self.use_api:
+            try:
+                # Try to load from API server first
+                agent = self._fetch_agent_by_name_from_api(agent_name)
+                if agent:
+                    self.config = agent
+                    logger.info(f"✅ Loaded agent config from API: {agent_name}")
+                    return True
+                else:
+                    logger.warning(f"⚠️ Agent '{agent_name}' not found in API, trying JSON fallback")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load agent '{agent_name}' from API: {e}, trying JSON fallback")
+        
+        # Fallback to JSON file loading
         try:
             if os.path.isfile(self.config_source):
                 with open(self.config_source, 'r') as f:
@@ -138,10 +215,10 @@ class ConfigManager:
                     for agent_config in raw_config:
                         if agent_config.get("name") == agent_name:
                             self.config = agent_config
-                            logger.info(f"✅ Loaded agent config: {agent_name}")
+                            logger.info(f"✅ Loaded agent config from JSON: {agent_name}")
                             return True
                     
-                    logger.warning(f"⚠️ Agent '{agent_name}' not found")
+                    logger.warning(f"⚠️ Agent '{agent_name}' not found in JSON")
                     return False
                 else:
                     logger.warning("⚠️ Config is not an array, cannot load by name")
@@ -155,11 +232,23 @@ class ConfigManager:
     
     def list_available_agents(self) -> List[str]:
         """
-        Get list of available agent names from config.
+        Get list of available agent names from API or config.
         
         Returns:
             List of agent names
         """
+        if self.use_api:
+            try:
+                # Try to get from API server first
+                agents = self._fetch_agents_from_api()
+                if agents:
+                    return [agent.get("name", f"agent_{i}") for i, agent in enumerate(agents)]
+                else:
+                    logger.warning("⚠️ No agents found in API, trying JSON fallback")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to list agents from API: {e}, trying JSON fallback")
+        
+        # Fallback to JSON file
         try:
             if os.path.isfile(self.config_source):
                 with open(self.config_source, 'r') as f:
@@ -176,17 +265,52 @@ class ConfigManager:
             return []
     
     def reload_config(self) -> None:
-        """Reload configuration from source (useful for database integration later)."""
+        """Reload configuration from API or fallback source."""
         self._load_config()
         logger.info("🔄 Configuration reloaded")
     
+    def set_api_enabled(self, enabled: bool) -> None:
+        """Enable or disable API usage for configuration loading."""
+        self.use_api = enabled
+        if enabled:
+            logger.info("✅ API configuration loading enabled")
+        else:
+            logger.info("📁 Fallback to JSON file configuration loading")
+    
+    def is_api_enabled(self) -> bool:
+        """Check if API configuration loading is enabled."""
+        return self.use_api
+    
+    def get_api_base_url(self) -> str:
+        """Get the current API base URL."""
+        return self.api_base_url
+    
+    def set_api_base_url(self, url: str) -> None:
+        """Set the API base URL."""
+        self.api_base_url = url
+        logger.info(f"🔗 API base URL updated to: {url}")
+    
     def load_agent_config_by_index(self, agent_index: int = 0) -> None:
         """
-        Load a specific agent configuration by index from array config.
+        Load a specific agent configuration by index from API or array config.
         
         Args:
             agent_index: Index of the agent config to load (default: 0)
         """
+        if self.use_api:
+            try:
+                # Try to load from API server first
+                agents = self._fetch_agents_from_api()
+                if agents and len(agents) > agent_index:
+                    self.config = agents[agent_index]
+                    logger.info(f"✅ Loaded agent config from API at index {agent_index}")
+                    return
+                else:
+                    logger.warning(f"⚠️ Agent index {agent_index} not found in API, trying JSON fallback")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to load agent by index from API: {e}, trying JSON fallback")
+        
+        # Fallback to JSON file loading
         try:
             if os.path.isfile(self.config_source):
                 with open(self.config_source, 'r') as f:
@@ -194,9 +318,9 @@ class ConfigManager:
                 
                 if isinstance(raw_config, list) and len(raw_config) > agent_index:
                     self.config = raw_config[agent_index]
-                    logger.info(f"✅ Loaded agent config at index {agent_index}")
+                    logger.info(f"✅ Loaded agent config from JSON at index {agent_index}")
                 else:
-                    logger.warning(f"⚠️ Agent index {agent_index} not found, using first or default")
+                    logger.warning(f"⚠️ Agent index {agent_index} not found in JSON, using first or default")
                     self._load_config()
             else:
                 logger.warning(f"⚠️ Config file not found, using defaults")
