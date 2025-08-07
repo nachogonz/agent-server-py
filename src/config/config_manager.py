@@ -48,11 +48,11 @@ class ConfigManager:
         """Fetch all agents from the API server."""
         try:
             with httpx.Client(timeout=10.0) as client:
-                response = client.get(f"{self.api_base_url}/agents")
+                response = client.get(f"{self.api_base_url}/agents/selected")
                 response.raise_for_status()
-                agents = response.json()
-                logger.info(f"✅ Fetched {len(agents)} agents from API")
-                return agents
+                agent = response.json()
+                logger.info(f"✅ Fetched agent from API")
+                return agent
         except httpx.RequestError as e:
             logger.error(f"❌ Request error fetching agents from API: {e}")
             raise
@@ -69,7 +69,7 @@ class ConfigManager:
             with httpx.Client(timeout=10.0) as client:
                 response = client.get(f"{self.api_base_url}/agents/name/{agent_name}")
                 if response.status_code == 404:
-                    logger.warning(f"⚠️ Agent '{agent_name}' not found in API")
+                    logger.warning(f"================ ⚠️ Agent '{agent_name}' not found in API ==================")
                     return None
                 response.raise_for_status()
                 agent = response.json()
@@ -90,9 +90,9 @@ class ConfigManager:
         if self.use_api:
             try:
                 # Try to load from API server first
-                agents = self._fetch_agents_from_api()
-                if agents and len(agents) > 0:
-                    self.config = agents[0]  # Use first agent as default
+                agent = self._fetch_agents_from_api()
+                if agent:
+                    self.config = agent
                     logger.info(f"✅ Configuration loaded from API: {self.api_base_url} (using first agent config)")
                     return
                 else:
