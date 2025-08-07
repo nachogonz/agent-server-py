@@ -358,7 +358,7 @@ class ConfigManager:
                     tts_instance = elevenlabs.TTS(
                         api_key=eleven_api_key,
                         voice_id=elevenlabs_config.get("voice_id", "21m00Tcm4TlvDq8ikWAM"),
-                        model=elevenlabs_config.get("model", "eleven_flash_v2_5"),
+                        model=elevenlabs_config.get("model", "eleven_turbo_v2_5"),
                         language=elevenlabs_config.get("language", "es"),
                         voice_settings=voice_settings
                     )
