@@ -90,10 +90,16 @@ class ConfigManager:
         if self.use_api:
             try:
                 # Try to load from API server first
-                agent = self._fetch_agents_from_api()
+                # If MODE env is 'nova', fetch the Jarvis agent explicitly
+                env_mode = os.getenv("MODE", "").lower()
+                if env_mode == "nova":
+                    logger.info("🔀 MODE is 'nova' — fetching agent by name: jarvis_agent")
+                    agent = self._fetch_agent_by_name_from_api("jarvis_agent")
+                else:
+                    agent = self._fetch_agents_from_api()
                 if agent:
                     self.config = agent
-                    logger.info(f"✅ Configuration loaded from API: {self.api_base_url} (using first agent config)")
+                    logger.info(f"✅ Configuration loaded from API: {self.api_base_url}")
                     return
                 else:
                     logger.warning("⚠️ No agents found in API, falling back to JSON file")
