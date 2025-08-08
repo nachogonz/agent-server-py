@@ -157,7 +157,9 @@ class ConfigManager:
     
     def get_stt_config(self) -> Dict[str, Any]:
         """Get STT configuration."""
-        return self.config.get("stt", {})
+        stt_config = self.config.get("stt", {})
+        logger.info(f"🎯 STT config from agent: {stt_config}")
+        return stt_config
     
     def get_llm_config(self) -> Dict[str, Any]:
         """Get LLM configuration."""
@@ -383,15 +385,54 @@ class ConfigManager:
         stt_config = self.get_stt_config()
         provider = stt_config.get("provider", "openai")
         
-        if provider == "deepgram":
+        # Add detailed logging
+        logger.info(f"🔧 Creating STT with provider: {provider}")
+        logger.info(f"📋 Full STT config: {stt_config}")
+        
+        if provider == "elevenlabs":
+            eleven_api_key = os.getenv("ELEVEN_API_KEY")
+            if eleven_api_key:
+                try:
+                    elevenlabs_config = stt_config.get("elevenlabs", {})
+                    language = elevenlabs_config.get("language", "en")
+                    
+                    logger.info(f"✅ Using ElevenLabs STT with language: {language}")
+                    logger.info(f"📋 ElevenLabs config: {elevenlabs_config}")
+                    
+                    # Set environment variable for language detection
+                    if language == "es":
+                        os.environ["ELEVENLABS_LANGUAGE"] = "es"
+                        logger.info("🌍 Set ELEVENLABS_LANGUAGE=es environment variable")
+                    
+                    # Create ElevenLabs STT
+                    stt_instance = elevenlabs.STT()
+                    logger.info(f"🎯 ElevenLabs STT configured for language: {language}")
+                    return stt_instance
+                    
+                except Exception as e:
+                    logger.warning(f"⚠️ ElevenLabs STT failed to initialize: {e}")
+                    logger.info("Falling back to OpenAI STT")
+            else:
+                logger.info("ElevenLabs API key not found, falling back to OpenAI STT")
+        
+        elif provider == "deepgram":
             deepgram_api_key = os.getenv("DEEPGRAM_API_KEY")
             if deepgram_api_key:
                 try:
                     deepgram_config = stt_config.get("deepgram", {})
                     model = deepgram_config.get("model", "nova-2")
+                    language = deepgram_config.get("language", "en")
                     
-                    logger.info(f"Using Deepgram STT with model: {model}")
-                    return deepgram.STT(model=model)
+                    logger.info(f"✅ Using Deepgram STT with model: {model}, language: {language}")
+                    logger.info(f"📋 Deepgram config: {deepgram_config}")
+                    
+                    # Create Deepgram STT with language configuration
+                    # According to Deepgram docs: https://developers.deepgram.com/docs/language
+                    # The language parameter restricts transcription to the specified language
+                    stt_instance = deepgram.STT(model=model, language=language)
+                    logger.info(f"🎯 Deepgram STT configured for language: {language}")
+                    logger.info(f"🌍 Deepgram will only transcribe {language} speech with model: {model}")
+                    return stt_instance
                     
                 except Exception as e:
                     logger.warning(f"⚠️ Deepgram STT failed to initialize: {e}")
@@ -399,9 +440,22 @@ class ConfigManager:
             else:
                 logger.info("Deepgram API key not found, falling back to OpenAI STT")
         
-        # Fallback to OpenAI STT
-        logger.info("Using OpenAI STT")
-        return openai.STT()
+        # OpenAI STT (primary or fallback)
+        openai_config = stt_config.get("openai", {})
+        language = openai_config.get("language", "en")
+        
+        logger.info(f"✅ Using OpenAI STT with language: {language}")
+        logger.info(f"📋 OpenAI config: {openai_config}")
+        
+        # Set environment variable for language detection
+        if language == "es":
+            os.environ["OPENAI_LANGUAGE"] = "es"
+            logger.info("🌍 Set OPENAI_LANGUAGE=es environment variable")
+        
+        # Create OpenAI STT with language configuration
+        stt_instance = openai.STT()
+        logger.info(f"🎯 OpenAI STT configured for language: {language}")
+        return stt_instance
     
     def create_llm(self) -> Any:
         """Create LLM instance based on configuration."""
