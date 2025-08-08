@@ -16,3 +16,6 @@ aiohttp
 
 # Data validation
 pydantic
+
+# LangSmith for observability and debugging
+langsmith>=0.1.0

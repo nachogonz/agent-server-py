@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 from dotenv import load_dotenv
-import httpx
 from livekit.agents import Agent
 
 from .functions import FunctionContext
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class VoiceAssistant(Agent):
-    """Voice assistant that provides system prompts and handles analytics for VoicePipelineAgent."""
+    """Voice assistant that provides system prompts for VoicePipelineAgent."""
     
     def __init__(self, config_manager: Optional[ConfigManager] = None, mode: Optional[str] = None, agent_name: Optional[str] = None):
         # Initialize configuration manager
@@ -42,9 +41,6 @@ class VoiceAssistant(Agent):
         super().__init__(instructions=instructions)
         
         self.function_context = FunctionContext()
-        self.session_id = f"livekit-{int(datetime.now().timestamp())}-{os.urandom(4).hex()}"
-        self.conversation_items: List[Dict[str, Any]] = []
-        self.session_start_time = datetime.now().isoformat()
 
     def _get_system_prompt_from_config(self) -> str:
         """Get the system prompt from config manager."""
@@ -98,48 +94,3 @@ class VoiceAssistant(Agent):
     def load_agent_by_name(self, agent_name: str) -> bool:
         """Load a specific agent configuration by name."""
         return self.config_manager.load_agent_by_name(agent_name)
-        
-    async def capture_conversation_item(self, role: str, content: str):
-        """Capture conversation items for analytics."""
-        self.conversation_items.append({
-            "timestamp": datetime.now().isoformat(),
-            "role": role,
-            "content": content
-        })
-        
-    async def send_analytics_data(self):
-        """Send conversation analytics to backend."""
-        try:
-            api_base_url = os.getenv("API_BASE_URL", "http://localhost:3001")
-            payload = {
-                "sessionId": self.session_id,
-                "agentId": self.get_agent_name(),
-                "agentMode": self.mode,
-                "startTime": self.session_start_time,
-                "endTime": datetime.now().isoformat(),
-                "conversationItems": self.conversation_items
-            }
-            
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{api_base_url}/metrics/livekit-complete-session",
-                    json=payload,
-                    timeout=30.0
-                )
-                
-                if response.status_code == 200:
-                    logger.info("✅ Analytics data sent successfully")
-                else:
-                    logger.error(f"❌ Failed to send analytics data: {response.status_code}")
-                    
-        except Exception as error:
-            logger.error(f"❌ Error sending analytics data: {error}")
-
-    async def on_session_end(self):
-        """Handle session cleanup when the session ends."""
-        try:
-            logger.info("🔄 Session ending, sending analytics data...")
-            await self.send_analytics_data()
-            logger.info("✅ Session cleanup completed")
-        except Exception as error:
-            logger.error(f"❌ Error during session cleanup: {error}")
